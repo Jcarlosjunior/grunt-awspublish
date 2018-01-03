@@ -149,22 +149,23 @@ module.exports = function (grunt) {
               grunt.verbose.writeln('(gzip) upload task:');
               grunt.verbose.writeln('file:', task.file);
               grunt.verbose.writeln('headers:\n', headers);
-              upload(client, buf, task.dest + 'gz', headers, cb);
+              upload(client, buf, task.dest, headers, cb);
             });
           }
         );
       }
-
-      // unzip task
-      tasks.push(function(cb) {
-        var headers = _.clone(task.headers);
-        headers['Content-Length'] = buf.length;
-        delete headers['Content-Encoding'];
-        grunt.verbose.writeln('upload task:');
-        grunt.verbose.writeln('file:', task.file);
-        grunt.verbose.writeln('headers:\n', headers);
-        upload(client, buf, task.dest, headers, cb);
-      });
+      else {
+        // unzip task
+        tasks.push(function(cb) {
+          var headers = _.clone(task.headers);
+          headers['Content-Length'] = buf.length;
+          delete headers['Content-Encoding'];
+          grunt.verbose.writeln('upload task:');
+          grunt.verbose.writeln('file:', task.file);
+          grunt.verbose.writeln('headers:\n', headers);
+          upload(client, buf, task.dest, headers, cb);
+        });
+      }
 
       async.parallel(tasks, cb);
 
@@ -172,31 +173,31 @@ module.exports = function (grunt) {
   }
 
   /**
-   * delete existing s3 files that are not on the local disk anymore
-   *
-   * @param  {Knox}   client
-   * @param  {Array}   localFiles
-   * @param  {String}   prefix
-   * @param  {Function} cb
-   *
-   * @api private
-   */
+  * delete existing s3 files that are not on the local disk anymore
+  *
+  * @param  {Knox}   client
+  * @param  {Array}   localFiles
+  * @param  {String}   prefix
+  * @param  {Function} cb
+  *
+  * @api private
+  */
 
   function deleteMultiple (client, localFiles, prefix, ignore, cb) {
 
     // list remote files
     client.list({prefix: prefix}, function (err, data) {
       var s3Files = _.map(data.Contents, 'Key'),
-          removeList = _.reject(s3Files, function (file) {
+      removeList = _.reject(s3Files, function (file) {
 
-            // quick fix for gzip files
-            if (file.slice(file.length - 2) === 'gz') {
-              file = file.slice(0, file.length - 2);
-            }
+        // quick fix for gzip files
+        if (file.slice(file.length - 2) === 'gz') {
+          file = file.slice(0, file.length - 2);
+        }
 
-            // check if file exist in local dir
-            return localFiles.indexOf(file) !== -1;
-          });
+        // check if file exist in local dir
+        return localFiles.indexOf(file) !== -1;
+      });
 
       // reject files matching ignore pattern
       removeList = _.reject(removeList, function (f) {
@@ -220,17 +221,17 @@ module.exports = function (grunt) {
 
     // make file public by default
     var options = this.options({syncIgnore : ''}),
-      client = knox.createClient(options),
-      flowActions = [], deleteActions = [],
-      tasks = [];
+    client = knox.createClient(options),
+    flowActions = [], deleteActions = [],
+    tasks = [];
 
     grunt.log.writeln('Bucket: ', options.bucket);
 
     // iterate over all files pairs
     this.files.forEach(function (f) {
       var dest = f.dest,
-          prefix = f.orig.dest,
-          headers = _.extend({}, options.headers, f.headers);
+      prefix = f.orig.dest,
+      headers = _.extend({}, options.headers, f.headers);
 
       // iterate over each src
       f.src.forEach(function (src) {
